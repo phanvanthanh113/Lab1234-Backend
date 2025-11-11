@@ -49,12 +49,12 @@ public class ApplicationDbContext : DbContext
 
         // Optional: Seed some data
         modelBuilder.Entity<Region>().HasData(
-            new Region { regionId = 1, Name = "Region1" },
-            new Region { regionId = 2, Name = "Region2" }
+            new Region(1, "Region1"),
+            new Region(2, "Region2")
         );
         modelBuilder.Entity<Role>().HasData(
-            new Role { roleId = 1, Name = "Admin" },
-            new Role { roleId = 2, Name = "User" }
+            new Role(1, "Admin"),
+            new Role(2, "User")
         );
         modelBuilder.Entity<User>().HasData(
             new { userId = 1, username = "user1", linkAvatar = "avatar1.png", otp = 123456, regionId = 1, roleId = 1 },
