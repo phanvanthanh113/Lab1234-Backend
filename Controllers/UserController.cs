@@ -1,76 +1,92 @@
-namespace WebApplication1.Controllers;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using WebApplication1.Data;
 using WebApplication1.Models;
-using Microsoft.EntityFrameworkCore;
-using System.Collections.Generic;
-using System.Threading.Tasks;
 
-[Route("api/[controller]")]
-[ApiController]
-
-public class UserController : ControllerBase
+namespace WebApplication1.Controllers
 {
-    private readonly ApplicationDbContext _context;
-
-    public UserController(ApplicationDbContext context)
+    [Route("api/[controller]")]
+    [ApiController]
+    public class UserController : ControllerBase
     {
-        _context = context;
-    }
+        private readonly ApplicationDbContext _context;
 
-    // GET: api/User
-    [HttpGet]
-    public async Task<ActionResult<IEnumerable<User>>> GetUsers()
-    {
-        return await _context.Users
-            .Include(u => u.role)
-            .Include(u => u.region)
-            .ToListAsync();
-    }
-
-    // GET: api/User/5
-    [HttpGet("{id}")]
-    public async Task<ActionResult<User>> GetUser(int id)
-    {
-        var user = await _context.Users.Include(u => u.role).Include(u => u.region).FirstOrDefaultAsync(u => u.userId == id);
-
-        if (user == null)
+        public UserController(ApplicationDbContext context)
         {
-            return NotFound();
+            _context = context;
         }
 
-        return user;
-    }
-
-    // POST: api/User
-    [HttpPost]
-    public async Task<ActionResult<User>> PostUser(User user)
-    {
-        // Add new user to the database
-        _context.Users.Add(user);
-        await _context.SaveChangesAsync();
-
-        return CreatedAtAction("GetUser", new { id = user.userId}, user);
-    }
-    [HttpPut("{id}")]
-    public async Task<IActionResult> PutUser(int id, User user)
-    {
-        if (id != user.userId)
+        // GET: api/User
+        [HttpGet]
+        public async Task<ActionResult<IEnumerable<User>>> GetUsers()
         {
-            return BadRequest();
+            return await _context.CustomUsers
+                .Include(u => u.role)
+                .Include(u => u.region)
+                .ToListAsync();
         }
 
-        _context.Entry(user).State = EntityState.Modified;
-
-        try
+        // GET: api/User/5
+        [HttpGet("{id}")]
+        public async Task<ActionResult<User>> GetUser(int id)
         {
+            var user = await _context.CustomUsers
+                .Include(u => u.role)
+                .Include(u => u.region)
+                .FirstOrDefaultAsync(u => u.userId == id);
+
+            if (user == null)
+                return NotFound();
+
+            return user;
+        }
+
+        // PUT: api/User/5
+        [HttpPut("{id}")]
+        public async Task<IActionResult> PutUser(int id, User user)
+        {
+            if (id != user.userId)
+                return BadRequest();
+
+            _context.Entry(user).State = EntityState.Modified;
+
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                if (!_context.CustomUsers.Any(e => e.userId == id))
+                    return NotFound();
+                else
+                    throw;
+            }
+
+            return NoContent();
+        }
+
+        // POST: api/User
+        [HttpPost]
+        public async Task<ActionResult<User>> PostUser(User user)
+        {
+            _context.CustomUsers.Add(user);
             await _context.SaveChangesAsync();
-        }
-        catch (DbUpdateConcurrencyException)
-        {
-            return NotFound();
+
+            return CreatedAtAction(nameof(GetUser), new { id = user.userId }, user);
         }
 
-        return NoContent();
+        // DELETE: api/User/5
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteUser(int id)
+        {
+            var user = await _context.CustomUsers.FindAsync(id);
+            if (user == null)
+                return NotFound();
+
+            _context.CustomUsers.Remove(user);
+            await _context.SaveChangesAsync();
+
+            return NoContent();
+        }
     }
 }

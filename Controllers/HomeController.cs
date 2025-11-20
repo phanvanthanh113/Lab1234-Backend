@@ -19,10 +19,14 @@ public class HomeController : Controller
 
     public async Task<IActionResult> Index()
     {
-        // Example: Get all users from database
-        var users = await _context.Users.ToListAsync();
+        var users = await _context.CustomUsers
+            .Include(u => u.region)
+            .Include(u => u.role)
+            .ToListAsync();
+
         return View(users);
     }
+
 
     public IActionResult Privacy()
     {
