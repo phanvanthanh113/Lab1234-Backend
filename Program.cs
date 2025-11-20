@@ -3,7 +3,7 @@ using WebApplication1.Data;
 using System.Text.Json.Serialization;
 using WebApplication1.Services;
 using WebApplication1.Models;
-using Swashbuckle.AspNetCore;
+using Microsoft.AspNetCore.Identity;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -17,6 +17,11 @@ builder.Services.AddControllersWithViews()
 // Configure Entity Framework Core with SQLite
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// ➕ ADD IDENTITY (BẮT BUỘC CHO Register + Login)
+builder.Services.AddIdentity<ApplicationUser, IdentityRole>()
+    .AddEntityFrameworkStores<ApplicationDbContext>()
+    .AddDefaultTokenProviders();
 
 // Add Swagger/OpenAPI
 builder.Services.AddEndpointsApiExplorer();
@@ -36,12 +41,15 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
-// ENABLE SWAGGER ALWAYS (Lab 3 requirement)
+// Enable Swagger ALWAYS (Lab 3 yêu cầu)
 app.UseSwagger();
 app.UseSwaggerUI();
 
 app.UseHttpsRedirection();
 app.UseRouting();
+
+// ➕ BẮT BUỘC CHO REGISTER + LOGIN
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapStaticAssets();
