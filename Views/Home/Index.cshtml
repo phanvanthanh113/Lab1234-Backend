@@ -1,4 +1,4 @@
-﻿@model List<WebApplication1.Models.User>
+﻿@model IEnumerable<WebApplication1.Models.ApplicationUser>
 
 @{
     ViewData["Title"] = "Home Page";
@@ -6,28 +6,31 @@
 
 <div class="text-center">
     <h1 class="display-4">Welcome</h1>
-    <p>Entity Framework Core with SQLite Example</p>
+    <p>ASP.NET Identity User List</p>
 </div>
 
 <div class="container mt-4">
     <h2>Users from Database</h2>
+
     <table class="table table-striped">
         <thead>
             <tr>
-                <th>ID</th>
                 <th>Username</th>
                 <th>Email</th>
                 <th>OTP</th>
+                <th>RegionId</th>
+                <th>ID</th>
             </tr>
         </thead>
         <tbody>
             @foreach (var user in Model)
             {
                 <tr>
-                    <td>@user.userId</td>
-                    <td>@user.username</td>
-                    <td>@user.linkAvatar</td>
-                    <td>@user.otp</td>
+                    <td>@user.UserName</td>
+                    <td>@user.Email</td>
+                    <td>@user.OTP</td>
+                    <td>@user.RegionId</td>
+                    <td>@user.Id</td>
                 </tr>
             }
         </tbody>

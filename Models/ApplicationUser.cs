@@ -4,13 +4,13 @@ namespace WebApplication1.Models;
 
 public class ApplicationUser : IdentityUser
 {
-    // thêm nếu muốn, không bắt buộc
     public string? FullName { get; set; }
     public string? AvatarUrl { get; set; }
-    public int? RegionId { get; set; }  
+    public int? RegionId { get; set; }
     public string? Name { get; set; }
 
     public bool IsDeleted { get; set; } = false;
-    public string OTP { get; set; } 
+
+    public string OTP { get; set; }
         = DateTimeOffset.Now.ToUnixTimeSeconds().ToString() + "none";
 }

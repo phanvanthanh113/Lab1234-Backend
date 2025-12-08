@@ -262,14 +262,13 @@ namespace WebApplication1.Migrations
                     b.Property<int>("score")
                         .HasColumnType("INTEGER");
 
-                    b.Property<int>("userId")
-                        .HasColumnType("INTEGER");
+                    b.Property<string>("userId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
 
                     b.HasKey("quizResultId");
 
                     b.HasIndex("levelId");
-
-                    b.HasIndex("userId");
 
                     b.ToTable("LevelResults");
                 });
@@ -478,15 +477,7 @@ namespace WebApplication1.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("WebApplication1.Models.User", "user")
-                        .WithMany()
-                        .HasForeignKey("userId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.Navigation("gameLevel");
-
-                    b.Navigation("user");
                 });
 
             modelBuilder.Entity("WebApplication1.Models.Question", b =>

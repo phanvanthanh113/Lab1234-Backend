@@ -11,8 +11,8 @@ using WebApplication1.Data;
 namespace WebApplication1.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20251120195038_AddOtpToApplicationUser")]
-    partial class AddOtpToApplicationUser
+    [Migration("20251207143053_InitFullDB")]
+    partial class InitFullDB
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -265,14 +265,18 @@ namespace WebApplication1.Migrations
                     b.Property<int>("score")
                         .HasColumnType("INTEGER");
 
-                    b.Property<int>("userId")
+                    b.Property<string>("userId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("userId1")
                         .HasColumnType("INTEGER");
 
                     b.HasKey("quizResultId");
 
                     b.HasIndex("levelId");
 
-                    b.HasIndex("userId");
+                    b.HasIndex("userId1");
 
                     b.ToTable("LevelResults");
                 });
@@ -483,9 +487,7 @@ namespace WebApplication1.Migrations
 
                     b.HasOne("WebApplication1.Models.User", "user")
                         .WithMany()
-                        .HasForeignKey("userId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("userId1");
 
                     b.Navigation("gameLevel");
 

@@ -7,6 +7,12 @@ using Microsoft.EntityFrameworkCore;
 using WebApplication1.ViewModel;
 using WebApplication1.Services;
 using System.IO;
+using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
+using Microsoft.Extensions.Configuration;
+using Microsoft.AspNetCore.Authorization;
 
 namespace WebApplication1.Controllers
 {
@@ -18,17 +24,45 @@ namespace WebApplication1.Controllers
         protected ResponseAPI _response;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IEmailService _emailService;
+        private readonly IConfiguration _configuration;
 
         public APIGameController(
             ApplicationDbContext db,
             UserManager<ApplicationUser> userManager,
-            IEmailService emailService)
+            IEmailService emailService,
+            IConfiguration configuration)
         {
             _db = db;
             _userManager = userManager;
             _emailService = emailService;
+            _configuration = configuration;
             _response = new ResponseAPI();
         }
+        private string GenerateJwtToken(string userId, string userName)
+{
+    var key = new SymmetricSecurityKey(
+        Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!));
+
+    var credentials = new SigningCredentials(
+        key, SecurityAlgorithms.HmacSha256);
+
+    var claims = new[]
+    {
+        new Claim(JwtRegisteredClaimNames.Sub, userName),
+        new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+        new Claim(ClaimTypes.NameIdentifier, userId)
+    };
+
+    var token = new JwtSecurityToken(
+        issuer: _configuration["Jwt:Issuer"],
+        audience: _configuration["Jwt:Audience"],
+        claims: claims,
+        expires: DateTime.Now.AddMinutes(30),
+        signingCredentials: credentials
+    );
+
+    return new JwtSecurityTokenHandler().WriteToken(token);
+}
 
         // ================== BÀI 3 – REGISTER ==================
         [HttpPost("Register")]
@@ -46,7 +80,9 @@ namespace WebApplication1.Controllers
             {
                 UserName = model.Username,
                 Email = model.Email,
-                FullName = model.FullName
+                FullName = model.FullName,
+                RegionId = model.RegionId,
+                OTP = model.OTP.ToString()
             };
 
             var result = await _userManager.CreateAsync(user, model.Password!);
@@ -66,37 +102,55 @@ namespace WebApplication1.Controllers
         }
 
         // ================== BÀI 3 – LOGIN ==================
-        [HttpPost("Login")]
-        public async Task<IActionResult> Login([FromBody] LoginRequest loginRequest)
+[HttpPost("Login")]
+public async Task<IActionResult> Login([FromBody] LoginRequest loginRequest)
+{
+    try
+    {
+        var username = loginRequest.UserName!;
+        var otp = loginRequest.OTP.ToString();
+
+        // ✅ LOGIN BẰNG IDENTITY USER (AspNetUsers)
+        var user = await _userManager.FindByNameAsync(username);
+
+        if (user == null)
         {
-            try
-            {
-                var email = loginRequest.Email!;
-                var password = loginRequest.Password!;
-
-                var user = await _userManager.FindByEmailAsync(email);
-
-                if (user != null && await _userManager.CheckPasswordAsync(user, password))
-                {
-                    _response.IsSuccess = true;
-                    _response.Notification = "Đăng nhập thành công";
-                    _response.Data = user;
-                    return Ok(_response);
-                }
-
-                _response.IsSuccess = false;
-                _response.Notification = "Đăng nhập thất bại";
-                _response.Data = null;
-                return BadRequest(_response);
-            }
-            catch (Exception ex)
-            {
-                _response.IsSuccess = false;
-                _response.Notification = "Lỗi";
-                _response.Data = ex.Message;
-                return BadRequest(_response);
-            }
+            _response.IsSuccess = false;
+            _response.Notification = "Sai username";
+            return BadRequest(_response);
         }
+
+        if (user.OTP != otp)
+        {
+            _response.IsSuccess = false;
+            _response.Notification = "Sai OTP";
+            return BadRequest(_response);
+        }
+
+        // ✅ TẠO JWT TOKEN
+        var token = GenerateJwtToken(user.Id, user.UserName!);
+
+        var data = new
+        {
+            token = token,
+            user = user
+        };
+
+        _response.IsSuccess = true;
+        _response.Notification = "Đăng nhập thành công";
+        _response.Data = data;
+
+        return Ok(_response);
+    }
+    catch (Exception ex)
+    {
+        _response.IsSuccess = false;
+        _response.Notification = "Lỗi";
+        _response.Data = ex.Message;
+        return BadRequest(_response);
+    }
+}
+
 
         // ================== GET ALL GAME LEVEL ==================
         [HttpGet("GetAllGameLevel")]
@@ -162,185 +216,150 @@ namespace WebApplication1.Controllers
         }
 
         // ================== SAVE RESULT ==================
-        [HttpPost("SaveResult")]
-        public async Task<IActionResult> SaveResult([FromBody] LevelResultDTO levelResult)
+        // ================== SAVE RESULT ==================
+[HttpPost("SaveResult")]
+public async Task<IActionResult> SaveResult([FromBody] LevelResultDTO levelResult)
+{
+    try
+    {
+        var levelResultSave = new LevelResult
         {
-            try
-            {
-                var levelResultSave = new LevelResult
-                {
-                    userId = int.Parse(levelResult.UserId),
-                    levelId = levelResult.LevelId,
-                    score = levelResult.Score,
-                    completionDate = DateTime.Now
-                };
+            userId = levelResult.UserId,   // ✅ GUID
+            levelId = levelResult.LevelId,
+            score = levelResult.Score,
+            completionDate = DateTime.Now
+        };
 
-                await _db.LevelResults.AddAsync(levelResultSave);
-                await _db.SaveChangesAsync();
+        _db.LevelResults.Add(levelResultSave);
+        await _db.SaveChangesAsync();
 
-                _response.IsSuccess = true;
-                _response.Notification = "Lưu kết quả thành công";
-                _response.Data = levelResultSave;
-                return Ok(_response);
-            }
-            catch (Exception ex)
-            {
-                _response.IsSuccess = false;
-                _response.Notification = "Lỗi";
-                _response.Data = ex.Message;
-                return BadRequest(_response);
-            }
-        }
+        _response.IsSuccess = true;
+        _response.Notification = "Lưu kết quả thành công";
+        _response.Data = levelResultSave;
+        return Ok(_response);
+    }
+    catch (Exception ex)
+    {
+        _response.IsSuccess = false;
+        _response.Notification = "Lỗi";
+        _response.Data = ex.Message;
+        return BadRequest(_response);
+    }
+}
+
 
         // ================== BÀI 6 – RATING ==================
-        [HttpGet("Rating/{idRegion}")]
-        public async Task<IActionResult> Rating(int idRegion)
-        {
-            try
-            {
-                if (idRegion > 0)
-                {
-                    var nameRegion = await _db.Regions
-                        .Where(x => x.regionId == idRegion)
-                        .Select(x => x.Name)
-                        .FirstOrDefaultAsync();
+// [HttpGet("Rating/{idRegion}")]
+// public async Task<IActionResult> Rating(int idRegion)
+// {
+//     try
+//     {
+//         // Lấy tên khu vực
+//         string nameRegion;
+//         if (idRegion > 0)
+//         {
+//             nameRegion = await _db.Regions
+//                 .Where(x => x.regionId == idRegion)
+//                 .Select(x => x.Name)
+//                 .FirstOrDefaultAsync() ?? "Không xác định";
+//         }
+//         else
+//         {
+//             nameRegion = "Tất cả";
+//         }
 
-                    if (nameRegion == null)
-                    {
-                        _response.IsSuccess = false;
-                        _response.Notification = "Không tìm thấy khu vực";
-                        _response.Data = null;
-                        return BadRequest(_response);
-                    }
+//         // 1. Lấy danh sách user từ Identity theo Region
+//         IQueryable<ApplicationUser> userQuery = _userManager.Users;
 
-                    var users = await _db.CustomUsers
-                        .Where(x => x.regionId == idRegion)
-                        .ToListAsync();
+//         if (idRegion > 0)
+//         {
+//             userQuery = userQuery.Where(u => u.RegionId == idRegion);
+//         }
 
-                    var results = await _db.LevelResults
-                        .Where(x => users.Select(u => u.userId).Contains(x.userId))
-                        .ToListAsync();
+//         var users = await userQuery.ToListAsync();
 
-                    RatingVM ratingVM = new RatingVM
-                    {
-                        NameRegion = nameRegion,
-                        userResultSums = new()
-                    };
+//         // 2. Lấy tất cả kết quả LevelResult của các user đó (userId là GUID string)
+//         var userIds = users.Select(u => u.Id).ToList(); // List<string>
 
-                    foreach (var item in users)
-                    {
-                        var sumScore = results
-                            .Where(x => x.userId == item.userId)
-                            .Sum(x => x.score);
+//         var results = await _db.LevelResults
+//             .Where(r => userIds.Contains(r.userId))
+//             .ToListAsync();
 
-                        var sumLevel = results
-                            .Where(x => x.userId == item.userId)
-                            .Count();
+//         // 3. Gộp lại theo từng user
+//         RatingVM ratingVM = new RatingVM
+//         {
+//             NameRegion = nameRegion,
+//             userResultSums = new()
+//         };
 
-                        UserResultSum userResult = new UserResultSum
-                        {
-                            NameUser = item.username,
-                            SumScore = sumScore,
-                            SumLevel = sumLevel
-                        };
+//         foreach (var user in users)
+//         {
+//             var userResults = results.Where(r => r.userId == user.Id);
 
-                        ratingVM.userResultSums.Add(userResult);
-                    }
+//             int sumScore = userResults.Sum(r => r.score);
+//             int sumLevel = userResults.Count();
 
-                    _response.IsSuccess = true;
-                    _response.Notification = "Lấy dữ liệu thành công";
-                    _response.Data = ratingVM;
-                    return Ok(_response);
-                }
-                else
-                {
-                    var users = await _db.CustomUsers.ToListAsync();
-                    var results = await _db.LevelResults.ToListAsync();
+//             UserResultSum userResult = new UserResultSum
+//             {
+//                 NameUser = user.UserName ?? user.Email ?? "Unknown",
+//                 SumScore = sumScore,
+//                 SumLevel = sumLevel
+//             };
 
-                    RatingVM ratingVM = new RatingVM
-                    {
-                        NameRegion = "Tất cả",
-                        userResultSums = new()
-                    };
+//             ratingVM.userResultSums.Add(userResult);
+//         }
 
-                    foreach (var item in users)
-                    {
-                        var sumScore = results
-                            .Where(x => x.userId == item.userId)
-                            .Sum(x => x.score);
-
-                        var sumLevel = results
-                            .Where(x => x.userId == item.userId)
-                            .Count();
-
-                        UserResultSum userResult = new UserResultSum
-                        {
-                            NameUser = item.username,
-                            SumScore = sumScore,
-                            SumLevel = sumLevel
-                        };
-
-                        ratingVM.userResultSums.Add(userResult);
-                    }
-
-                    _response.IsSuccess = true;
-                    _response.Notification = "Lấy dữ liệu thành công";
-                    _response.Data = ratingVM;
-                    return Ok(_response);
-                }
-            }
-            catch (Exception ex)
-            {
-                _response.IsSuccess = false;
-                _response.Notification = "Lỗi";
-                _response.Data = ex.Message;
-                return BadRequest(_response);
-            }
-        }
+//         _response.IsSuccess = true;
+//         _response.Notification = "Lấy dữ liệu thành công";
+//         _response.Data = ratingVM;
+//         return Ok(_response);
+//     }
+//     catch (Exception ex)
+//     {
+//         _response.IsSuccess = false;
+//         _response.Notification = "Lỗi";
+//         _response.Data = ex.Message;
+//         return BadRequest(_response);
+//     }
+// }
 
         // ================== BÀI 6 – GET USER INFORMATION ==================
         [HttpGet("GetUserInformation/{userId}")]
-        public async Task<IActionResult> GetUserInformation(int userId)
+public async Task<IActionResult> GetUserInformation(string userId)
+{
+    try
+    {
+        var user = await _userManager.FindByIdAsync(userId);
+
+        if (user == null)
         {
-            try
-            {
-                var user = await _db.CustomUsers
-                    .Where(x => x.userId == userId)
-                    .FirstOrDefaultAsync();
-
-                if (user == null)
-                {
-                    _response.IsSuccess = false;
-                    _response.Notification = "Không tìm thấy người dùng";
-                    _response.Data = null;
-                    return BadRequest(_response);
-                }
-
-                UserInformationVM userInfo = new UserInformationVM
-                {
-                    Name = user.username,
-                    Email = "Không có Email (model không có trường Email)",
-                    Avatar = user.linkAvatar ?? "",
-                    Region = await _db.Regions
-                        .Where(x => x.regionId == user.regionId)
-                        .Select(x => x.Name)
-                        .FirstOrDefaultAsync() ?? "Không xác định"
-                };
-
-                _response.IsSuccess = true;
-                _response.Notification = "Lấy dữ liệu thành công";
-                _response.Data = userInfo;
-                return Ok(_response);
-            }
-            catch (Exception ex)
-            {
-                _response.IsSuccess = false;
-                _response.Notification = "Lỗi";
-                _response.Data = ex.Message;
-                return BadRequest(_response);
-            }
+            _response.IsSuccess = false;
+            _response.Notification = "Không tìm thấy người dùng";
+            _response.Data = null;
+            return BadRequest(_response);
         }
 
+        var userInfo = new
+        {
+            Name = user.FullName,
+            Email = user.Email,
+            Avatar = user.AvatarUrl,
+            Region = "Region " + user.RegionId
+        };
+
+        _response.IsSuccess = true;
+        _response.Notification = "Lấy dữ liệu thành công";
+        _response.Data = userInfo;
+        return Ok(_response);
+    }
+    catch (Exception ex)
+    {
+        _response.IsSuccess = false;
+        _response.Notification = "Lỗi";
+        _response.Data = ex.Message;
+        return BadRequest(_response);
+    }
+}
         // ================== BÀI 6 – CHANGE USER PASSWORD ==================
         [HttpPut("ChangeUserPassword")]
         public async Task<IActionResult> ChangeUserPassword(ChangePasswordDTO changePasswordDTO)
@@ -389,61 +408,66 @@ namespace WebApplication1.Controllers
 
         // ================== BÀI 6 – UPDATE USER INFORMATION ==================
         [HttpPut("UpdateUserInformation")]
-        public async Task<IActionResult> UpdateUserInformation([FromForm] UserInformationDTO userInformationDTO)
+public async Task<IActionResult> UpdateUserInformation([FromForm] UserInformationDTO userInformationDTO)
+{
+    try
+    {
+        // LẤY USER TỪ BẢNG ApplicationUser (Identity)
+        var user = await _userManager.FindByIdAsync(userInformationDTO.UserId!);
+
+        if (user == null)
         {
-            try
-            {
-                var user = await _db.CustomUsers
-                    .Where(x => x.userId == int.Parse(userInformationDTO.UserId))
-                    .FirstOrDefaultAsync();
-
-                if (user == null)
-                {
-                    _response.IsSuccess = false;
-                    _response.Notification = "Không tìm thấy người dùng";
-                    _response.Data = null;
-                    return BadRequest(_response);
-                }
-
-                user.username = userInformationDTO.Name;
-                user.regionId = userInformationDTO.RegionId;
-
-                if (userInformationDTO.Avatar != null)
-                {
-                    var fileExtension = Path.GetExtension(userInformationDTO.Avatar.FileName);
-                    var fileName = $"{userInformationDTO.UserId}{fileExtension}";
-
-                    var filePath = Path.Combine(
-                        Directory.GetCurrentDirectory(),
-                        "wwwroot/uploads/avatars",
-                        fileName
-                    );
-
-                    Directory.CreateDirectory(Path.GetDirectoryName(filePath)!);
-
-                    using (var stream = new FileStream(filePath, FileMode.Create))
-                    {
-                        await userInformationDTO.Avatar.CopyToAsync(stream);
-                    }
-
-                    user.linkAvatar = fileName;
-                }
-
-                await _db.SaveChangesAsync();
-
-                _response.IsSuccess = true;
-                _response.Notification = "Cập nhật thông tin thành công";
-                _response.Data = user;
-                return Ok(_response);
-            }
-            catch (Exception ex)
-            {
-                _response.IsSuccess = false;
-                _response.Notification = "Lỗi";
-                _response.Data = ex.Message;
-                return BadRequest(_response);
-            }
+            _response.IsSuccess = false;
+            _response.Notification = "Không tìm thấy người dùng";
+            _response.Data = null;
+            return BadRequest(_response);
         }
+
+        // Cập nhật Tên
+        if (!string.IsNullOrEmpty(userInformationDTO.Name))
+            user.FullName = userInformationDTO.Name;
+
+        // Cập nhật Region
+        if (userInformationDTO.RegionId > 0)
+            user.RegionId = userInformationDTO.RegionId;
+
+        // Nếu có file Avatar → upload
+        if (userInformationDTO.Avatar != null)
+        {
+            var ext = Path.GetExtension(userInformationDTO.Avatar.FileName);
+            var newFileName = $"{user.Id}{ext}";
+
+            var folderPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "avatars");
+            Directory.CreateDirectory(folderPath);
+
+            var filePath = Path.Combine(folderPath, newFileName);
+
+            using (var stream = new FileStream(filePath, FileMode.Create))
+            {
+                await userInformationDTO.Avatar.CopyToAsync(stream);
+            }
+
+            user.AvatarUrl = newFileName;
+        }
+
+        // Lưu thay đổi
+        await _userManager.UpdateAsync(user);
+
+        _response.IsSuccess = true;
+        _response.Notification = "Cập nhật thông tin thành công";
+        _response.Data = user;
+
+        return Ok(_response);
+    }
+    catch (Exception ex)
+    {
+        _response.IsSuccess = false;
+        _response.Notification = "Lỗi";
+        _response.Data = ex.Message;
+        return BadRequest(_response);
+    }
+}
+
 
         // ================== BÀI 3 – DELETE ACCOUNT (IsDeleted) ==================
         [HttpDelete("DeleteAccount/{userId}")]
@@ -611,5 +635,54 @@ namespace WebApplication1.Controllers
                 return BadRequest(_response);
             }
         }
+        // ================== GET ALL RESULT BY USER ==================
+[Authorize]
+[HttpGet("GetAllResultByUser/{guid}")]
+public async Task<IActionResult> GetAllResultByUser(string guid)
+{
+    try
+    {
+        // 1. Kiểm tra user tồn tại trong Identity
+        var user = await _userManager.FindByIdAsync(guid);
+        if (user == null)
+        {
+            _response.IsSuccess = false;
+            _response.Notification = "Không tìm thấy user";
+            return BadRequest(_response);
+        }
+
+        // 2. Lấy kết quả trực tiếp bằng GUID
+        var data = await _db.LevelResults
+            .Where(x => x.userId == guid)
+            .Include(x => x.gameLevel)
+            .ToListAsync();
+
+        _response.IsSuccess = true;
+        _response.Notification = "Lấy dữ liệu thành công";
+        _response.Data = data;
+        return Ok(_response);
+    }
+    catch (Exception ex)
+    {
+        _response.IsSuccess = false;
+        _response.Notification = "Lỗi";
+        _response.Data = ex.Message;
+        return BadRequest(_response);
+    }
+}
+        // ================== ADD TEST LEVEL ==================
+        [HttpGet("AddTestLevel")]
+        public IActionResult AddTestLevel()
+        {
+            _db.GameLevels.Add(new GameLevel
+            {
+                title = "Level Test",
+                description = "Màn test từ API"
+            });
+
+            _db.SaveChanges();
+            return Ok("Đã thêm Level");
+        }
+
     }
 }

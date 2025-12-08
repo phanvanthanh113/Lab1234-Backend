@@ -5,7 +5,8 @@ public class LevelResult
     public int quizResultId { get; set; }
 
     // FK
-    public int userId { get; set; }
+    public string userId { get; set; } = null!;
+
     public int levelId { get; set; }
 
     // Data fields
@@ -13,6 +14,5 @@ public class LevelResult
     public DateTime completionDate { get; set; }
 
     // Navigation
-    public User? user { get; set; }
     public GameLevel? gameLevel { get; set; }
 }

@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace WebApplication1.Migrations
 {
     /// <inheritdoc />
-    public partial class Init : Migration
+    public partial class InitFullDB : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -34,6 +34,10 @@ namespace WebApplication1.Migrations
                     Id = table.Column<string>(type: "TEXT", nullable: false),
                     FullName = table.Column<string>(type: "TEXT", nullable: true),
                     AvatarUrl = table.Column<string>(type: "TEXT", nullable: true),
+                    RegionId = table.Column<int>(type: "INTEGER", nullable: true),
+                    Name = table.Column<string>(type: "TEXT", nullable: true),
+                    IsDeleted = table.Column<bool>(type: "INTEGER", nullable: false),
+                    OTP = table.Column<string>(type: "TEXT", nullable: false),
                     UserName = table.Column<string>(type: "TEXT", maxLength: 256, nullable: true),
                     NormalizedUserName = table.Column<string>(type: "TEXT", maxLength: 256, nullable: true),
                     Email = table.Column<string>(type: "TEXT", maxLength: 256, nullable: true),
@@ -260,20 +264,20 @@ namespace WebApplication1.Migrations
                 {
                     quizResultId = table.Column<int>(type: "INTEGER", nullable: false)
                         .Annotation("Sqlite:Autoincrement", true),
-                    userId = table.Column<int>(type: "INTEGER", nullable: false),
+                    userId = table.Column<string>(type: "TEXT", nullable: false),
                     levelId = table.Column<int>(type: "INTEGER", nullable: false),
                     score = table.Column<int>(type: "INTEGER", nullable: false),
-                    completionDate = table.Column<DateTime>(type: "TEXT", nullable: false)
+                    completionDate = table.Column<DateTime>(type: "TEXT", nullable: false),
+                    userId1 = table.Column<int>(type: "INTEGER", nullable: true)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_LevelResults", x => x.quizResultId);
                     table.ForeignKey(
-                        name: "FK_LevelResults_CustomUsers_userId",
-                        column: x => x.userId,
+                        name: "FK_LevelResults_CustomUsers_userId1",
+                        column: x => x.userId1,
                         principalTable: "CustomUsers",
-                        principalColumn: "userId",
-                        onDelete: ReferentialAction.Cascade);
+                        principalColumn: "userId");
                     table.ForeignKey(
                         name: "FK_LevelResults_GameLevels_levelId",
                         column: x => x.levelId,
@@ -362,9 +366,9 @@ namespace WebApplication1.Migrations
                 column: "levelId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_LevelResults_userId",
+                name: "IX_LevelResults_userId1",
                 table: "LevelResults",
-                column: "userId");
+                column: "userId1");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Questions_levelId",

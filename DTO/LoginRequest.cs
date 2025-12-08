@@ -2,7 +2,7 @@ namespace WebApplication1.DTO
 {
     public class LoginRequest
     {
-        public string? Email { get; set; }
-        public string? Password { get; set; }
+        public string? UserName { get; set; }
+        public int OTP { get; set; }
     }
 }

@@ -1,0 +1,42 @@
+@model WebApplication1.Models.Question
+
+<div class="container">
+    <h2 class="text-center">Edit Question</h2>
+
+    <form asp-action="EditQuestion" method="post">
+        <input type="hidden" asp-for="levelId" />
+        <input type="hidden" asp-for="questionId" />
+
+        <div class="form-group">
+            <label>Question</label>
+            <input asp-for="contentQuestion" class="form-control" />
+        </div>
+
+        <div class="form-group">
+            <label>Option 1</label>
+            <input asp-for="option1" class="form-control" />
+        </div>
+
+        <div class="form-group">
+            <label>Option 2</label>
+            <input asp-for="option2" class="form-control" />
+        </div>
+
+        <div class="form-group">
+            <label>Option 3</label>
+            <input asp-for="option3" class="form-control" />
+        </div>
+
+        <div class="form-group">
+            <label>Option 4</label>
+            <input asp-for="option4" class="form-control" />
+        </div>
+
+        <div class="form-group">
+            <label>Answer</label>
+            <input asp-for="answer" class="form-control" />
+        </div>
+
+        <button type="submit" class="btn btn-primary mt-3">Save</button>
+    </form>
+</div>

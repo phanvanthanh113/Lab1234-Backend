@@ -11,8 +11,8 @@ using WebApplication1.Data;
 namespace WebApplication1.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20251120154715_Init")]
-    partial class Init
+    [Migration("20251207152327_Lab7_Update")]
+    partial class Lab7_Update
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -173,10 +173,16 @@ namespace WebApplication1.Migrations
                     b.Property<string>("FullName")
                         .HasColumnType("TEXT");
 
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("INTEGER");
+
                     b.Property<bool>("LockoutEnabled")
                         .HasColumnType("INTEGER");
 
                     b.Property<DateTimeOffset?>("LockoutEnd")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("NormalizedEmail")
@@ -187,6 +193,10 @@ namespace WebApplication1.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("OTP")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("PasswordHash")
                         .HasColumnType("TEXT");
 
@@ -194,6 +204,9 @@ namespace WebApplication1.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<bool>("PhoneNumberConfirmed")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("RegionId")
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("SecurityStamp")
@@ -252,14 +265,13 @@ namespace WebApplication1.Migrations
                     b.Property<int>("score")
                         .HasColumnType("INTEGER");
 
-                    b.Property<int>("userId")
-                        .HasColumnType("INTEGER");
+                    b.Property<string>("userId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
 
                     b.HasKey("quizResultId");
 
                     b.HasIndex("levelId");
-
-                    b.HasIndex("userId");
 
                     b.ToTable("LevelResults");
                 });
@@ -468,15 +480,7 @@ namespace WebApplication1.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("WebApplication1.Models.User", "user")
-                        .WithMany()
-                        .HasForeignKey("userId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.Navigation("gameLevel");
-
-                    b.Navigation("user");
                 });
 
             modelBuilder.Entity("WebApplication1.Models.Question", b =>

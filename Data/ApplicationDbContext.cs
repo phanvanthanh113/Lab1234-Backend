@@ -83,23 +83,22 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
         });
 
         // LEVEL RESULT
-        modelBuilder.Entity<LevelResult>(entity =>
-        {
-            entity.HasKey(e => e.quizResultId);
+       // LEVEL RESULT
+modelBuilder.Entity<LevelResult>(entity =>
+{
+    entity.HasKey(e => e.quizResultId);
 
-            entity.Property(e => e.score).IsRequired();
-            entity.Property(e => e.completionDate).IsRequired();
+    entity.Property(e => e.userId).IsRequired();   // ✅ chỉ giữ FK dạng string
+    entity.Property(e => e.score).IsRequired();
+    entity.Property(e => e.completionDate).IsRequired();
 
-            entity.HasOne(e => e.user)
-                .WithMany()
-                .HasForeignKey(e => e.userId)
-                .IsRequired();
+    // ✅ CHỈ GIỮ QUAN HỆ VỚI GAMELEVEL
+    entity.HasOne(e => e.gameLevel)
+        .WithMany()
+        .HasForeignKey(e => e.levelId)
+        .IsRequired();
+});
 
-            entity.HasOne(e => e.gameLevel)
-                .WithMany()
-                .HasForeignKey(e => e.levelId)
-                .IsRequired();
-        });
 
         // SEED DATA
         modelBuilder.Entity<Region>().HasData(
