@@ -4,9 +4,9 @@ using System.Text.Json.Serialization;
 using WebApplication1.Services;
 using WebApplication1.Models;
 using Microsoft.AspNetCore.Identity;
-// using Microsoft.AspNetCore.Authentication.JwtBearer;   // ✅ ĐÃ COMMENT
-// using Microsoft.IdentityModel.Tokens;                 // ✅ ĐÃ COMMENT
-// using System.Text;                                    // ✅ ĐÃ COMMENT
+using Microsoft.AspNetCore.Authentication.JwtBearer;  
+using Microsoft.IdentityModel.Tokens;                 
+using System.Text;                                    
 using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -46,7 +46,6 @@ builder.Services.ConfigureApplicationCookie(options =>
 });
 
 // ================= SWAGGER =================
-builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo
@@ -54,29 +53,56 @@ builder.Services.AddSwaggerGen(c =>
         Title = "ServerGame106",
         Version = "v1"
     });
+
+    // ✅ KHAI BÁO JWT AUTH CHO SWAGGER (ĐỂ HIỆN NÚT AUTHORIZE)
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = "Bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "Nhập token theo dạng: Bearer {your_token}"
+    });
+
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            new string[] {}
+        }
+    });
 });
 
-//================= JWT AUTH =================
-// builder.Services.AddAuthentication(options =>
-// {
-//     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-//     options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-// })
-// .AddJwtBearer(options =>
-// {
-//     options.TokenValidationParameters = new TokenValidationParameters
-//     {
-//         ValidateIssuer = true,
-//         ValidateAudience = true,
-//         ValidateLifetime = true,
-//         ValidateIssuerSigningKey = true,
 
-//         ValidIssuer = builder.Configuration["Jwt:Issuer"],
-//         ValidAudience = builder.Configuration["Jwt:Audience"],
-//         IssuerSigningKey = new SymmetricSecurityKey(
-//             Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!))
-//     };
-// });
+//================= JWT AUTH =================
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+
+        ValidIssuer = builder.Configuration["Jwt:Issuer"],
+        ValidAudience = builder.Configuration["Jwt:Audience"],
+        IssuerSigningKey = new SymmetricSecurityKey(
+            Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!))
+    };
+});
 
 // ================= EMAIL =================
 builder.Services.Configure<EmailSettings>(
